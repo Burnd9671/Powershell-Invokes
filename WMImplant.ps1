@@ -423,18 +423,20 @@ Path to save output to
         $temp2 = @()
         ForEach ($line in $results)
         {
-            $temp2 += $line.Message -split '[\r\n]' | Select-String -pattern "workstation name:", "account name:", "source network address:"
-        }
-
-        $result = $temp2 | Select-String -pattern "workstation name:", "account name:", "source network address:"; 
+            $importantPart = $line.Message -split "New Logon"
+            $temp2 += $importantPart[1] -split '[\r\n]' | Select-String -pattern "account name:", "workstation name:", "source network address:"
+        }        
 
         $finalResult = @(); 
-        For($i=0; $i -lt $result.Count; $i+=4) { 
-            $accountName = ([string]($result[$i+1])).Split(":")[1].Trim(); 
-            $workstationName = ([string]($result[$i+2])).Split(":")[1].Trim(); 
-            $sourceAddress = ([string]($result[$i+3])).Split(":")[1].Trim(); 
-            $keyPair = "$accountName,$workstationName,$sourceAddress";
-            $finalResult += $keyPair 
+        For($i=0; $i -lt $temp2.Count; $i+=4) { 
+            $accountName = ([string]($temp2[$i+0])).Split(":")[1].Trim();             
+            $workstationName = ([string]($temp2[$i+2])).Split(":")[1].Trim(); 
+            $sourceAddress = ([string]($temp2[$i+3])).Split(":")[1].Trim(); 
+                        
+            if (!($accountName.EndsWith('$')) -and ($accountName -ne '-') -and ($accountName -match '^[^0-9]+$')) {           
+                $keyPair = "$accountName,$workstationName,$sourceAddress";
+                $finalResult += $keyPair                 
+            }
         }
         Write-Output "User Account, System Connecting To, System Connecting From"
         $finalResult | Sort-Object -Unique
@@ -877,11 +879,25 @@ function Invoke-CommandGeneration
 
     if($Command -ne '')
     {
-        $Command += " -ComputerName $ComputerName"
         if(($AnyCreds -eq "yes") -or ($AnyCreds -eq "y"))
         {
             $Command += " -RemoteUser $GenUsername -RemotePass $GenPassword`n"
         }
+
+        # See if user is reading in computers from a file
+        $FileInput = Read-Host "Do you want to run a WMImplant against a list of computers from a file? [yes] or [no] >"
+        $FileInput = $FileInput.Trim().ToLower()
+        if(($FileInput -ceq 'y') -or ($FileInput -ceq 'yes'))
+        {
+            $ComputerPath = Read-Host "What is the full path to the file containing a list of computers? >"
+            $Command = $Command.Trim()
+            $Command = "Get-Content $ComputerPath | $Command"
+        }
+        else
+        {
+            $Command += " -ComputerName $ComputerName"
+        }
+
         # Print command
         $Command
     }
